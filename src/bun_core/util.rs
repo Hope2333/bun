@@ -5124,11 +5124,12 @@ pub fn spawn_sync_inherit(argv: &[impl AsRef<[u8]>]) -> Result<SpawnStatus, crat
             // posix_spawn_bun closes everything above the highest fd named in an
             // action. With an empty list that means stdout/stderr — so name them.
             // dup2(n, n) is the no-op form; the C side clears CLOEXEC for it.
-            let inherit_stdio: [spawn_ffi::Action; 3] = core::array::from_fn(|fd| spawn_ffi::Action {
-                kind: spawn_ffi::FileActionType::Dup2,
-                fds: [fd as core::ffi::c_int, fd as core::ffi::c_int],
-                ..spawn_ffi::Action::default()
-            });
+            let inherit_stdio: [spawn_ffi::Action; 3] =
+                core::array::from_fn(|fd| spawn_ffi::Action {
+                    kind: spawn_ffi::FileActionType::Dup2,
+                    fds: [fd as core::ffi::c_int, fd as core::ffi::c_int],
+                    ..spawn_ffi::Action::default()
+                });
             let req = spawn_ffi::BunSpawnRequest {
                 actions: spawn_ffi::ActionsList {
                     ptr: inherit_stdio.as_ptr(),
