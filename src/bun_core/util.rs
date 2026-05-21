@@ -5121,7 +5121,21 @@ pub fn spawn_sync_inherit(argv: &[impl AsRef<[u8]>]) -> Result<SpawnStatus, crat
                 }
             };
 
-            let req = spawn_ffi::BunSpawnRequest::default();
+            // posix_spawn_bun closes everything above the highest fd named in an
+            // action. With an empty list that means stdout/stderr — so name them.
+            // dup2(n, n) is the no-op form; the C side clears CLOEXEC for it.
+            let inherit_stdio: [spawn_ffi::Action; 3] = core::array::from_fn(|fd| spawn_ffi::Action {
+                kind: spawn_ffi::FileActionType::Dup2,
+                fds: [fd as core::ffi::c_int, fd as core::ffi::c_int],
+                ..spawn_ffi::Action::default()
+            });
+            let req = spawn_ffi::BunSpawnRequest {
+                actions: spawn_ffi::ActionsList {
+                    ptr: inherit_stdio.as_ptr(),
+                    len: inherit_stdio.len(),
+                },
+                ..spawn_ffi::BunSpawnRequest::default()
+            };
             let mut pid: core::ffi::c_int = 0;
             // SAFETY: exe/ptrs/environ are NUL-terminated; req layout matches C.
             let rc = spawn_ffi::posix_spawn_bun(
