@@ -1,0 +1,13 @@
+{
+  "project": "Hope2333/bun",
+  "branch": "android-termux",
+  "phase": "EXECUTION",
+  "status": "ACTIVE",
+  "last_transition": "2026-05-22",
+  "objective": "Make bun build --compile work on Termux/Android without glibc",
+  "constraints": {
+    "minimal_patches": true,
+    "upstreamable": true,
+    "no_glibc": false
+  }
+}
