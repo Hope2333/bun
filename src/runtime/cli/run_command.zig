@@ -808,20 +808,35 @@ pub const RunCommand = struct {
 
         this_transpiler.resolver.opts.load_tsconfig_json = opts.load_tsconfig_json;
         this_transpiler.options.load_tsconfig_json = opts.load_tsconfig_json;
-
-        this_transpiler.configureLinker();
-
-        const root_dir_info = this_transpiler.resolver.readDirInfo(this_transpiler.fs.top_level_dir) catch |err| {
-            if (!log_errors) return error.CouldntReadCurrentDirectory;
-            ctx.log.print(Output.errorWriter()) catch {};
-            Output.prettyErrorln("<r><red>error<r><d>:<r> <b>{s}<r> loading directory {f}", .{ @errorName(err), bun.fmt.QuotedFormatter{ .text = this_transpiler.fs.top_level_dir } });
-            Output.flush();
-            return err;
+        // On Android/Termux, /data/data/ directories may be SELinux-restricted.
+        // Fall back to $PREFIX or $HOME if CWD can't be read.
+        const root_dir_info = brk: {
+            const result = this_transpiler.resolver.readDirInfo(this_transpiler.fs.top_level_dir);
+            if (result) |info| {
+                break :brk info;
+            } else |err| {
+                if (comptime Environment.isAndroid) {
+                    const fallback = bun.getenvZ("PREFIX") orelse bun.getenvZ("HOME") orelse "/tmp";
+                    this_transpiler.fs.top_level_dir = fallback;
+                    if (this_transpiler.resolver.readDirInfo(fallback)) |info| {
+                        break :brk info;
+                    } else |_| {}
+                }
+                if (!log_errors) return error.CouldntReadCurrentDirectory;
+                ctx.log.print(Output.errorWriter()) catch {};
+                Output.prettyErrorln("<r><red>error<r><d>:<r> <b>{s}<r> loading directory {f}", .{
+                    @errorName(err),
+                    bun.fmt.QuotedFormatter{ .text = this_transpiler.fs.top_level_dir },
+                });
+                Output.flush();
+                return err;
+            }
         } orelse {
             ctx.log.print(Output.errorWriter()) catch {};
             Output.prettyErrorln("error loading current directory", .{});
             Output.flush();
             return error.CouldntReadCurrentDirectory;
+        };
         };
 
         this_transpiler.resolver.store_fd = false;
